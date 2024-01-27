@@ -30,6 +30,8 @@ from os.path import join, isfile, dirname
 from threading import Thread
 from unittest.mock import Mock
 from base64 import b64decode, b64encode
+
+import requests
 from ovos_plugin_manager.microphone import OVOSMicrophoneFactory
 from ovos_plugin_manager.vad import OVOSVADFactory
 from ovos_dinkum_listener.voice_loop.voice_loop import DinkumVoiceLoop
@@ -134,6 +136,9 @@ class NeonVoiceClient:
     def network_info(self) -> dict:
         if not self._network_info:
             self._network_info = get_adapter_info()
+            public_ip = requests.get('https://api.ipify.org').text
+            self._network_info["public"] = public_ip
+            LOG.debug(f"Resolved network info: {self._network_info}")
         return self._network_info
 
     @property
@@ -142,8 +147,10 @@ class NeonVoiceClient:
             self._node_data = {"device_description": "test client",
                                "networking": {
                                    "local_ip": self.network_info.get('ipv4'),
+                                   "public_ip": self.network_info.get('public'),
                                    "mac_address": self.network_info.get('mac')}
                                }
+            LOG.info(f"Resolved node_data: {self._node_data}")
         return self._node_data
 
     @property
