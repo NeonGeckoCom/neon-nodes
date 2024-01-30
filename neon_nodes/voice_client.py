@@ -173,7 +173,7 @@ class NeonVoiceClient:
                 if not self._voice_thread.is_alive():
                     self.error_hook("11")
                     raise RuntimeError("Voice Thread not alive")
-                if self._voice_loop._is_running:
+                if not self._voice_loop._is_running:
                     self.error_hook("12")
                     raise RuntimeError("Voice Loop not running")
         except KeyboardInterrupt:
