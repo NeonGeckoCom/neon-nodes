@@ -27,7 +27,7 @@
 import io
 
 from os.path import join, isfile, dirname
-from threading import Thread
+from threading import Thread, Event
 from unittest.mock import Mock
 from base64 import b64decode, b64encode
 
@@ -101,7 +101,9 @@ class NeonVoiceClient:
                                            listenword_audio_callback=
                                            self.on_hotword_audio)
         self._voice_loop.start()
-        self._voice_thread = None
+        self._voice_thread: Thread = None
+        self._watchdog_thread: Thread = None
+        self._watchdog_event = Event()
 
         self._listening_sound = None
         self._error_sound = None
@@ -162,9 +164,21 @@ class NeonVoiceClient:
             self._voice_thread = Thread(target=self._voice_loop.run,
                                         daemon=True)
             self._voice_thread.start()
+            self._watchdog_thread = Thread(target=self.watchdog,
+                                           daemon=True)
+            self._watchdog_thread.start()
         except Exception as e:
             self.error_hook(repr(e))
             raise e
+
+    def watchdog(self):
+        while not self._watchdog_event.wait(30):
+            if not self._voice_thread.is_alive():
+                self.error_hook("Voice Thread not alive")
+                raise KeyboardInterrupt()
+            if self._voice_loop._is_running:
+                self.error_hook("Voice Loop not running")
+                raise KeyboardInterrupt()
 
     def on_stt_audio(self, audio_bytes: bytes, context: dict):
         LOG.debug(f"Got {len(audio_bytes)} bytes of audio")
@@ -206,12 +220,15 @@ class NeonVoiceClient:
 
     def shutdown(self):
         self.stopping_hook()
+        self._watchdog_event.set()
+        self._watchdog_thread.join(3)
         self._voice_loop.stop()
         self._voice_thread.join(30)
 
 
 def main(*args, **kwargs):
     client = NeonVoiceClient(*args, **kwargs)
+    client._voice_thread.join()
     wait_for_exit_signal()
     client.shutdown()
 
