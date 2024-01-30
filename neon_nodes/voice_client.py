@@ -174,10 +174,12 @@ class NeonVoiceClient:
     def watchdog(self):
         while not self._watchdog_event.wait(30):
             if not self._voice_thread.is_alive():
-                self.error_hook("Voice Thread not alive")
+                LOG.error("Voice Thread not alive")
+                self.error_hook("11")
                 raise KeyboardInterrupt()
             if self._voice_loop._is_running:
-                self.error_hook("Voice Loop not running")
+                LOG.error("Voice Loop not running")
+                self.error_hook("12")
                 raise KeyboardInterrupt()
 
     def on_stt_audio(self, audio_bytes: bytes, context: dict):
