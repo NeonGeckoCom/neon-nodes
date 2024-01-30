@@ -102,7 +102,6 @@ class NeonVoiceClient:
                                            self.on_hotword_audio)
         self._voice_loop.start()
         self._voice_thread: Thread = None
-        self._watchdog_thread: Thread = None
         self._watchdog_event = Event()
 
         self._listening_sound = None
@@ -164,23 +163,21 @@ class NeonVoiceClient:
             self._voice_thread = Thread(target=self._voice_loop.run,
                                         daemon=True)
             self._voice_thread.start()
-            self._watchdog_thread = Thread(target=self.watchdog,
-                                           daemon=True)
-            self._watchdog_thread.start()
         except Exception as e:
             self.error_hook(repr(e))
             raise e
 
     def watchdog(self):
-        while not self._watchdog_event.wait(30):
-            if not self._voice_thread.is_alive():
-                LOG.error("Voice Thread not alive")
-                self.error_hook("11")
-                raise KeyboardInterrupt()
-            if self._voice_loop._is_running:
-                LOG.error("Voice Loop not running")
-                self.error_hook("12")
-                raise KeyboardInterrupt()
+        try:
+            while not self._watchdog_event.wait(30):
+                if not self._voice_thread.is_alive():
+                    self.error_hook("11")
+                    raise RuntimeError("Voice Thread not alive")
+                if self._voice_loop._is_running:
+                    self.error_hook("12")
+                    raise RuntimeError("Voice Loop not running")
+        except KeyboardInterrupt:
+            self.shutdown()
 
     def on_stt_audio(self, audio_bytes: bytes, context: dict):
         LOG.debug(f"Got {len(audio_bytes)} bytes of audio")
@@ -223,16 +220,13 @@ class NeonVoiceClient:
     def shutdown(self):
         self.stopping_hook()
         self._watchdog_event.set()
-        self._watchdog_thread.join(3)
         self._voice_loop.stop()
         self._voice_thread.join(30)
 
 
 def main(*args, **kwargs):
     client = NeonVoiceClient(*args, **kwargs)
-    client._voice_thread.join()
-    wait_for_exit_signal()
-    client.shutdown()
+    client.watchdog()
 
 
 if __name__ == "__main__":
