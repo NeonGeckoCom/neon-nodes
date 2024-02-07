@@ -74,8 +74,10 @@ setup(
     license='BSD-3-Clause',
     packages=find_packages(),
     extras_require={"voice_client": get_requirements("voice_client.txt")},
-    package_data={'neon_nodes': ['res/*']
-                  },
+    package_data={'neon_nodes': ['res/*']},
+    entry_points={
+        "console_scripts": ['node-voice-client=neon_nodes.voice_client:main']
+    },
     zip_safe=True,
     classifiers=[
         'Intended Audience :: Developers',
