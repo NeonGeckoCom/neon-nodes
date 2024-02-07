@@ -73,10 +73,11 @@ setup(
     author_email='developers@neon.ai',
     license='BSD-3-Clause',
     packages=find_packages(),
+    requires=get_requirements("requirements.txt"),
     extras_require={"voice_client": get_requirements("voice_client.txt")},
     package_data={'neon_nodes': ['res/*']},
     entry_points={
-        "console_scripts": ['node-voice-client=neon_nodes.voice_client:main']
+        "console_scripts": ['neon-node=neon_nodes.cli:neon_node']
     },
     zip_safe=True,
     classifiers=[
