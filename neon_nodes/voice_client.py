@@ -82,6 +82,7 @@ class NeonVoiceClient:
         self.stopping_hook = stopping_hook
         alive_hook()
         self.config = Configuration()
+        self._device_data = self.config.get('neon_node', {})
         LOG.init(self.config.get("logging"))
         self.bus = bus or FakeBus()
         self.lang = self.config.get('lang') or "en-us"
@@ -145,7 +146,8 @@ class NeonVoiceClient:
     @property
     def node_data(self):
         if not self._node_data:
-            self._node_data = {"device_description": "test client",
+            self._node_data = {"device_description": self._node_data.get(
+                'description', 'node voice client'),
                                "networking": {
                                    "local_ip": self.network_info.get('ipv4'),
                                    "public_ip": self.network_info.get('public'),
