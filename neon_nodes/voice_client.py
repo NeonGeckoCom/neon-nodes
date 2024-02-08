@@ -25,20 +25,19 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import io
+import requests
 
 from os.path import join, isfile, dirname
 from threading import Thread, Event
 from unittest.mock import Mock
 from base64 import b64decode, b64encode
 
-import requests
 from ovos_plugin_manager.microphone import OVOSMicrophoneFactory
 from ovos_plugin_manager.vad import OVOSVADFactory
 from ovos_dinkum_listener.voice_loop.voice_loop import DinkumVoiceLoop
 from ovos_dinkum_listener.voice_loop.hotwords import HotwordContainer
 from ovos_config.config import Configuration
 from ovos_utils.messagebus import FakeBus
-from ovos_utils import wait_for_exit_signal
 from ovos_utils.log import LOG
 from ovos_bus_client.message import Message
 from neon_utils.hana_utils import request_backend, ServerException
@@ -102,7 +101,7 @@ class NeonVoiceClient:
                                            listenword_audio_callback=
                                            self.on_hotword_audio)
         self._voice_loop.start()
-        self._voice_thread: Thread = None
+        self._voice_thread = None
         self._watchdog_event = Event()
 
         self._listening_sound = None
@@ -117,6 +116,9 @@ class NeonVoiceClient:
 
     @property
     def listening_sound(self) -> AudioSegment:
+        """
+        Get an AudioSegment representation of the configured listening sound
+        """
         if not self._listening_sound:
             res_file = Configuration().get('sounds').get('start_listening')
             if not isfile(res_file):
@@ -127,6 +129,9 @@ class NeonVoiceClient:
 
     @property
     def error_sound(self) -> AudioSegment:
+        """
+        Get an AudioSegment representation of the configured error sound
+        """
         if not self._error_sound:
             res_file = Configuration().get('sounds').get('error')
             if not isfile(res_file):
@@ -136,6 +141,10 @@ class NeonVoiceClient:
 
     @property
     def network_info(self) -> dict:
+        """
+        Get networking information about this client, including IP addresses and
+        MAC address.
+        """
         if not self._network_info:
             self._network_info = get_adapter_info()
             public_ip = requests.get('https://api.ipify.org').text
@@ -145,6 +154,9 @@ class NeonVoiceClient:
 
     @property
     def node_data(self):
+        """
+        Get information about this node from configuration and networking status
+        """
         if not self._node_data:
             self._node_data = {"device_description": self._node_data.get(
                 'description', 'node voice client'),
@@ -157,10 +169,16 @@ class NeonVoiceClient:
         return self._node_data
 
     @property
-    def user_profile(self):
+    def user_profile(self) -> dict:
+        """
+        Get a user profile from local disk
+        """
         return get_default_user_config()
 
     def run(self):
+        """
+        Start the voice thread as a daemon and return
+        """
         try:
             self._voice_thread = Thread(target=self._voice_loop.run,
                                         daemon=True)
@@ -170,6 +188,10 @@ class NeonVoiceClient:
             raise e
 
     def watchdog(self):
+        """
+        Runs in a loop to make sure the voice loop is running. If the loop is
+        unexpectedly stopped, raise an exception to kill this process.
+        """
         try:
             while not self._watchdog_event.wait(30):
                 if not self._voice_thread.is_alive():
@@ -182,6 +204,11 @@ class NeonVoiceClient:
             self.shutdown()
 
     def on_stt_audio(self, audio_bytes: bytes, context: dict):
+        """
+        Callback when there is a recorded STT segment.
+        @param audio_bytes: bytes of recorded audio
+        @param context: dict context associated with recorded audio
+        """
         LOG.debug(f"Got {len(audio_bytes)} bytes of audio")
         wav_data = AudioData(audio_bytes, self._mic.sample_rate,
                              self._mic.sample_width).get_wav_data()
@@ -192,14 +219,24 @@ class NeonVoiceClient:
             play(self.error_sound)
 
     def on_hotword_audio(self, audio: bytes, context: dict):
+        """
+        Callback when a hotword is detected.
+        @param audio: bytes of detected hotword audio
+        @param context: dict context associated with recorded hotword
+        """
         payload = context
         msg_type = "recognizer_loop:wakeword"
         play(self.listening_sound)
         LOG.info(f"Emitting hotword event: {msg_type}")
         # emit ww event
         self.bus.emit(Message(msg_type, payload, context))
+        # TODO: Optionally save/upload hotword audio
 
     def get_audio_response(self, audio: bytes):
+        """
+        Handle recorded audio input and get/speak a response.
+        @param audio: bytes of STT audio
+        """
         audio_data = b64encode(audio).decode("utf-8")
         transcript = request_backend("neon/get_stt",
                                      {"encoded_audio": audio_data,
@@ -220,6 +257,9 @@ class NeonVoiceClient:
         LOG.info(f"Playback completed")
 
     def shutdown(self):
+        """
+        Cleanly stop all threads and shutdown this service
+        """
         self.stopping_hook()
         self._watchdog_event.set()
         self._voice_loop.stop()
