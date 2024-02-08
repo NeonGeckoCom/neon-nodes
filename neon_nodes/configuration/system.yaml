@@ -21,13 +21,9 @@ listener:
   speech_begin: 0.5
   # amount of time without speech to wait before stopping listening
   silence_end: 0.9
-  # TODO: tune below params with WW disabled
   # number of audio chunks from WW detection to include in STT audio
   utterance_chunks_to_rewind: 1
   wakeword_chunks_to_save: 15
-sounds:
-  start_listening: /opt/neon/start_listening.wav
-  error: /opt/neon/error.wav
 hotwords:
   hey_mycroft:
     module: ovos-ww-plugin-precise-lite
