@@ -27,5 +27,6 @@ jobs:
           event-type: Publish Release
           client-payload: |-
             {
-              "ref": "${{ inputs.branch }}",
-              "repo": "${{ inputs.repo }}"
+              "ref": "dev",
+              "repo": "neon-nodes"
+            }
