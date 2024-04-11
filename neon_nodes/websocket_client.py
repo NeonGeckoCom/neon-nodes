@@ -25,6 +25,7 @@
 # SOFTWARE,  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import io
+import json
 import requests
 
 from os.path import join, isfile, dirname
@@ -40,17 +41,17 @@ from ovos_config.config import Configuration
 from ovos_utils.messagebus import FakeBus
 from ovos_utils.log import LOG
 from ovos_bus_client.message import Message
-from neon_utils.hana_utils import request_backend, ServerException
 from neon_utils.net_utils import get_adapter_info
 from neon_utils.user_utils import get_default_user_config
 from speech_recognition import AudioData
 from pydub import AudioSegment
 from pydub.playback import play
+from websocket import WebSocketApp
 
 from neon_nodes import on_alive, on_error, on_ready, on_started, on_stopping, MockTransformers
 
 
-class NeonVoiceClient:
+class NeonWebsocketClient:
     def __init__(self, bus=None, ready_hook=on_ready, error_hook=on_error,
                  stopping_hook=on_stopping, alive_hook=on_alive,
                  started_hook=on_started):
@@ -58,6 +59,26 @@ class NeonVoiceClient:
         self.stopping_hook = stopping_hook
         alive_hook()
         self.config = Configuration()
+
+        self._connected = Event()
+        # TODO: Endpoint and credentials from config
+        auth_data = requests.post("http://0.0.0.0:8080/auth/login",
+                                  json={"username": "node_user",
+                                        "password": "node_password"}).json()
+        LOG.info(auth_data)
+
+        def on_connect(*_, **__):
+            self._connected.set()
+
+        def on_error(_, exception):
+            self.error_hook()
+            raise ConnectionError(f"Failed to connect: {exception}")
+
+        self.websocket = WebSocketApp(f"ws://0.0.0.0:8080/node/v1?client_id={auth_data['client_id']}",
+                                      on_message=self._on_ws_data,
+                                      on_open=on_connect,
+                                      on_error=on_error)
+        Thread(target=self.websocket.run_forever, daemon=True).start()
         self._device_data = self.config.get('neon_node', {})
         LOG.init(self.config.get("logging"))
         self.bus = bus or FakeBus()
@@ -89,6 +110,8 @@ class NeonVoiceClient:
 
         started_hook()
         self.run()
+        LOG.info("Waiting for WS connection")
+        self._connected.wait()
         ready_hook()
 
     @property
@@ -137,11 +160,11 @@ class NeonVoiceClient:
         if not self._node_data:
             self._node_data = {"device_description": self._node_data.get(
                 'description', 'node voice client'),
-                               "networking": {
-                                   "local_ip": self.network_info.get('ipv4'),
-                                   "public_ip": self.network_info.get('public'),
-                                   "mac_address": self.network_info.get('mac')}
-                               }
+                "networking": {
+                    "local_ip": self.network_info.get('ipv4'),
+                    "public_ip": self.network_info.get('public'),
+                    "mac_address": self.network_info.get('mac')}
+            }
             LOG.info(f"Resolved node_data: {self._node_data}")
         return self._node_data
 
@@ -151,6 +174,14 @@ class NeonVoiceClient:
         Get a user profile from local disk
         """
         return get_default_user_config()
+
+    def _on_ws_data(self, _, serialized: str):
+        try:
+            message = Message.deserialize(serialized)
+            LOG.info(f"Received response message {message.msg_type}")
+            self.on_response(message)
+        except Exception as e:
+            LOG.exception(e)
 
     def run(self):
         """
@@ -190,8 +221,8 @@ class NeonVoiceClient:
         wav_data = AudioData(audio_bytes, self._mic.sample_rate,
                              self._mic.sample_width).get_wav_data()
         try:
-            self.get_audio_response(wav_data)
-        except ServerException as e:
+            self.on_input(wav_data)
+        except Exception as e:
             LOG.error(e)
             play(self.error_sound)
 
@@ -209,42 +240,43 @@ class NeonVoiceClient:
         self.bus.emit(Message(msg_type, payload, context))
         # TODO: Optionally save/upload hotword audio
 
-    def get_audio_response(self, audio: bytes):
+    def on_input(self, audio: bytes):
         """
         Handle recorded audio input and get/speak a response.
         @param audio: bytes of STT audio
         """
         audio_data = b64encode(audio).decode("utf-8")
-        transcript = request_backend("neon/get_stt",
-                                     {"encoded_audio": audio_data,
-                                      "lang_code": self.lang})
-        transcribed = transcript['transcripts'][0]
-        LOG.info(transcribed)
-        response = request_backend("neon/get_response",
-                                   {"lang_code": self.lang,
-                                    "user_profile": self.user_profile,
-                                    "node_data": self.node_data,
-                                    "utterance": transcribed})
-        answer = response['answer']
-        LOG.info(answer)
-        audio = request_backend("neon/get_tts", {"lang_code": self.lang,
-                                                 "to_speak": answer})
-        audio_bytes = b64decode(audio['encoded_audio'])
-        play(AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav"))
-        LOG.info(f"Playback completed")
+        data = {"msg_type": "neon.audio_input",
+                "data": {"audio_data": audio_data, "lang": self.lang}}
+        self.websocket.send(json.dumps(data))
+
+    def on_response(self, message: Message):
+        if message.msg_type == "klat.response":
+            LOG.info(f"Response="
+                     f"{message.data['responses'][self.lang]['sentence']}")
+            encoded_audio = message.data['responses'][self.lang]['audio']
+            audio_bytes = b64decode(encoded_audio.get('female') or
+                                    encoded_audio.get('male'))
+            play(AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav"))
+            LOG.info(f"Playback completed")
+        elif message.msg_type == "neon.alert_expired":
+            LOG.info(f"Alert expired: {message.data}")
+        else:
+            LOG.warning(f"Ignoring message: {message.msg_type}")
 
     def shutdown(self):
         """
         Cleanly stop all threads and shutdown this service
         """
         self.stopping_hook()
+        self.websocket.close()
         self._watchdog_event.set()
         self._voice_loop.stop()
         self._voice_thread.join(30)
 
 
 def main(*args, **kwargs):
-    client = NeonVoiceClient(*args, **kwargs)
+    client = NeonWebsocketClient(*args, **kwargs)
     client.watchdog()
 
 
