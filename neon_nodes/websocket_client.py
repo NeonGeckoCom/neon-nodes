@@ -74,7 +74,7 @@ class NeonWebsocketClient:
             self.error_hook()
             raise ConnectionError(f"Failed to connect: {exception}")
 
-        self.websocket = WebSocketApp(f"ws://0.0.0.0:8080/node/v1?client_id={auth_data['client_id']}",
+        self.websocket = WebSocketApp(f"ws://0.0.0.0:8080/node/v1?token={auth_data['access_token']}",
                                       on_message=self._on_ws_data,
                                       on_open=on_connect,
                                       on_error=on_error)
