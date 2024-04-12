@@ -59,12 +59,13 @@ class NeonWebsocketClient:
         self.stopping_hook = stopping_hook
         alive_hook()
         self.config = Configuration()
-
+        node_config = self.config["neon_node"]
+        server_addr = node_config["hana_address"]
         self._connected = Event()
-        # TODO: Endpoint and credentials from config
-        auth_data = requests.post("http://0.0.0.0:8080/auth/login",
-                                  json={"username": "node_user",
-                                        "password": "node_password"}).json()
+
+        auth_data = requests.post(f"{server_addr}/auth/login", json={
+            "username": node_config["hana_username"],
+            "password": node_config["hana_password"]}).json()
         LOG.info(auth_data)
 
         def on_connect(*_, **__):
@@ -73,8 +74,8 @@ class NeonWebsocketClient:
         def on_error(_, exception):
             self.error_hook()
             raise ConnectionError(f"Failed to connect: {exception}")
-
-        self.websocket = WebSocketApp(f"ws://0.0.0.0:8080/node/v1?token={auth_data['access_token']}",
+        ws_address = server_addr.replace("http", "ws", 1)
+        self.websocket = WebSocketApp(f"{ws_address}/node/v1?token={auth_data['access_token']}",
                                       on_message=self._on_ws_data,
                                       on_open=on_connect,
                                       on_error=on_error)

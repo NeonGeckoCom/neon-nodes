@@ -1,5 +1,9 @@
 neon_node:
   description: Neon Node
+#  hana_address: https://hana.neonaiservices.com
+  hana_address: http://10.0.30.10:8080
+  hana_username: node_user
+  hana_password: node_password
 microphone:
   module: ovos-microphone-plugin-alsa
 listener:

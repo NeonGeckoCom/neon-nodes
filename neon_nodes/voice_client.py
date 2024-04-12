@@ -58,7 +58,9 @@ class NeonVoiceClient:
         self.stopping_hook = stopping_hook
         alive_hook()
         self.config = Configuration()
-        self._device_data = self.config.get('neon_node', {})
+        self._node_config = self.config.get('neon_node', {})
+        self._hana_address = self._node_config.get('hana_address')
+
         LOG.init(self.config.get("logging"))
         self.bus = bus or FakeBus()
         self.lang = self.config.get('lang') or "en-us"
@@ -85,7 +87,7 @@ class NeonVoiceClient:
         self._error_sound = None
 
         self._network_info = dict()
-        self._node_data = dict()
+        self._node_data = {"description": self._node_config.get("description")}
 
         started_hook()
         self.run()
@@ -217,18 +219,21 @@ class NeonVoiceClient:
         audio_data = b64encode(audio).decode("utf-8")
         transcript = request_backend("neon/get_stt",
                                      {"encoded_audio": audio_data,
-                                      "lang_code": self.lang})
+                                      "lang_code": self.lang},
+                                     server_url=self._hana_address)
         transcribed = transcript['transcripts'][0]
         LOG.info(transcribed)
         response = request_backend("neon/get_response",
                                    {"lang_code": self.lang,
                                     "user_profile": self.user_profile,
                                     "node_data": self.node_data,
-                                    "utterance": transcribed})
+                                    "utterance": transcribed},
+                                   server_url=self._hana_address)
         answer = response['answer']
         LOG.info(answer)
         audio = request_backend("neon/get_tts", {"lang_code": self.lang,
-                                                 "to_speak": answer})
+                                                 "to_speak": answer},
+                                server_url=self._hana_address)
         audio_bytes = b64decode(audio['encoded_audio'])
         play(AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav"))
         LOG.info(f"Playback completed")
