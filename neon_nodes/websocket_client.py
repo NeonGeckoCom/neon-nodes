@@ -68,17 +68,17 @@ class NeonWebsocketClient:
             "password": node_config["hana_password"]}).json()
         LOG.info(auth_data)
 
-        def on_connect(*_, **__):
+        def ws_connect(*_, **__):
             self._connected.set()
 
-        def on_error(_, exception):
-            self.error_hook()
+        def ws_error(_, exception):
+            self.error_hook(exception)
             raise ConnectionError(f"Failed to connect: {exception}")
         ws_address = server_addr.replace("http", "ws", 1)
         self.websocket = WebSocketApp(f"{ws_address}/node/v1?token={auth_data['access_token']}",
                                       on_message=self._on_ws_data,
-                                      on_open=on_connect,
-                                      on_error=on_error)
+                                      on_open=ws_connect,
+                                      on_error=ws_error)
         Thread(target=self.websocket.run_forever, daemon=True).start()
         self._device_data = self.config.get('neon_node', {})
         LOG.init(self.config.get("logging"))
