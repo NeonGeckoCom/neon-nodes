@@ -74,6 +74,7 @@ class NeonWebsocketClient:
         def ws_error(_, exception):
             self.error_hook(exception)
             raise ConnectionError(f"Failed to connect: {exception}")
+
         ws_address = server_addr.replace("http", "ws", 1)
         self.websocket = WebSocketApp(f"{ws_address}/node/v1?token={auth_data['access_token']}",
                                       on_message=self._on_ws_data,
@@ -111,7 +112,7 @@ class NeonWebsocketClient:
 
         started_hook()
         self.run()
-        LOG.info("Waiting for WS connection")
+        LOG.debug("Waiting for WS connection")
         self._connected.wait()
         ready_hook()
 
