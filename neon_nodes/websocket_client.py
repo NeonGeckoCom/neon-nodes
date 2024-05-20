@@ -241,7 +241,7 @@ class NeonWebsocketClient:
         except Exception as e:
             play(self.error_sound)
             # Unknown error, restart to be safe
-            self.error_hook(e)
+            self.error_hook(repr(e))
             raise e
 
     def on_hotword_audio(self, audio: bytes, context: dict):
