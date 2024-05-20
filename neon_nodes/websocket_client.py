@@ -72,9 +72,12 @@ class NeonWebsocketClient:
             self._connected.set()
 
         def ws_disconnect(*_, **__):
-            self._connected.clear()
-            LOG.warning("Websocket disconnected")
-            self._wait_for_connection()
+            if not self._connected.is_set():
+                LOG.debug("WS disconnected on shutdown")
+                return
+            error = "Websocket unexpectedly disconnected"
+            self.error_hook(error)
+            raise ConnectionError(error)
 
         def ws_error(_, exception):
             self.error_hook(exception)
@@ -283,6 +286,7 @@ class NeonWebsocketClient:
         Cleanly stop all threads and shutdown this service
         """
         self.stopping_hook()
+        self._connected.clear()
         self.websocket.close()
         self._watchdog_event.set()
         self._voice_loop.stop()
