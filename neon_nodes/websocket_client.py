@@ -195,7 +195,6 @@ class NeonWebsocketClient:
     def _on_ws_data(self, _, serialized: str):
         try:
             message = Message.deserialize(serialized)
-            LOG.info(f"Received response message {message.msg_type}")
             self.on_response(message)
         except Exception as e:
             LOG.exception(e)
@@ -281,7 +280,7 @@ class NeonWebsocketClient:
         elif message.msg_type == "neon.alert_expired":
             LOG.info(f"Alert expired: {message.data}")
         elif message.msg_type == "neon.audio_input.response":
-            LOG.info(f"Got STT response: {message.data}")
+            LOG.info(f"Got STT: {message.data.get('transcripts')}")
         else:
             LOG.warning(f"Ignoring message: {message.msg_type}")
 
