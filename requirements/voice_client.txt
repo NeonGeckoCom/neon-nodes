@@ -1,6 +1,6 @@
 neon-utils[network]~=1.9
 ovos-dinkum-listener==0.0.3a29
-ovos-vad-plugin-webrtcvad~=0.0.1
+# TODO: webrtcvad fails to run in OS image
 ovos-microphone-plugin-alsa~=0.0.0
 # ovos-microphone-plugin-sounddevice  Not working on Mark2 where alsa is
 ovos-ww-plugin-precise-lite[tflite]~=0.1

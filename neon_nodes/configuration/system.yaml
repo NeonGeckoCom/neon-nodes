@@ -1,11 +1,13 @@
 neon_node:
   description: Neon Node
-  hana_address: https://hana.neonaialpha.com
+  # TODO: Stable release address
+  hana_address: https://hana.neonaibeta.com
   hana_username: neon
   hana_password: neon
 microphone:
   module: ovos-microphone-plugin-alsa
 listener:
+  sample_rate: 16000
   wake_word: hey_mycroft
   stand_up_word: ""
   VAD:
@@ -16,7 +18,7 @@ listener:
     min_seconds: 1
     max_current_ratio_threshold: 2
     initial_energy_threshold: 1000.0
-    module: ovos-vad-plugin-webrtcvad
+    module: ovos-vad-plugin-silero
   mute_during_output: true
   instant_listen: false
   enable_stt_api: false
