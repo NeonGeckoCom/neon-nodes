@@ -73,7 +73,7 @@ class NeonWebsocketClient:
 
         def ws_disconnect(*_, **__):
             if not self._connected.is_set():
-                LOG.debug("WS disconnected on shutdown")
+                LOG.info("WS disconnected on shutdown")
                 return
             error = "Websocket unexpectedly disconnected"
             self.error_hook(error)
@@ -240,8 +240,10 @@ class NeonWebsocketClient:
         try:
             self.on_input(wav_data)
         except Exception as e:
-            LOG.error(e)
             play(self.error_sound)
+            # Unknown error, restart to be safe
+            self.error_hook(e)
+            raise e
 
     def on_hotword_audio(self, audio: bytes, context: dict):
         """
@@ -278,6 +280,8 @@ class NeonWebsocketClient:
             LOG.info(f"Playback completed")
         elif message.msg_type == "neon.alert_expired":
             LOG.info(f"Alert expired: {message.data}")
+        elif message.msg_type == "neon.audio_input.response":
+            LOG.info(f"Got STT response: {message.data}")
         else:
             LOG.warning(f"Ignoring message: {message.msg_type}")
 
