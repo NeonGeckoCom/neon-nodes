@@ -71,6 +71,11 @@ class NeonWebsocketClient:
         def ws_connect(*_, **__):
             self._connected.set()
 
+        def ws_disconnect(*_, **__):
+            self._connected.clear()
+            LOG.warning("Websocket disconnected")
+            self._wait_for_connection()
+
         def ws_error(_, exception):
             self.error_hook(exception)
             raise ConnectionError(f"Failed to connect: {exception}")
@@ -79,7 +84,8 @@ class NeonWebsocketClient:
         self.websocket = WebSocketApp(f"{ws_address}/node/v1?token={auth_data['access_token']}",
                                       on_message=self._on_ws_data,
                                       on_open=ws_connect,
-                                      on_error=ws_error)
+                                      on_error=ws_error,
+                                      on_close=ws_disconnect)
         Thread(target=self.websocket.run_forever, daemon=True).start()
         self._device_data = self.config.get('neon_node', {})
         LOG.init(self.config.get("logging"))
@@ -112,9 +118,15 @@ class NeonWebsocketClient:
 
         started_hook()
         self.run()
-        LOG.debug("Waiting for WS connection")
-        self._connected.wait()
+        self._wait_for_connection()
         ready_hook()
+
+    def _wait_for_connection(self):
+        LOG.debug("Waiting for WS connection")
+        if not self._connected.wait(30):
+            error = f"Timeout waiting for connection to {self.websocket.url}"
+            self.error_hook(error)
+            raise TimeoutError(error)
 
     @property
     def listening_sound(self) -> AudioSegment:
