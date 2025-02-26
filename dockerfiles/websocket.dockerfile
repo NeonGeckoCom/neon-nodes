@@ -8,7 +8,9 @@ ENV OVOS_CONFIG_FILENAME=neon.yaml
 ENV OVOS_DEFAULT_CONFIG=/opt/neon/neon.yaml
 ENV XDG_CONFIG_HOME=/config
 
-RUN apt update && apt install -y swig gcc libpulse-dev portaudio19-dev
+RUN apt update && apt install -y swig gcc libpulse-dev portaudio19-dev wget pulseaudio
+RUN mkdir /opt/neon && \
+    wget https://github.com/OpenVoiceOS/precise-lite-models/raw/master/wakewords/en/hey_mycroft.tflite -O /opt/neon/hey_mycroft.tflite
 
 COPY docker_overlay/ /
 

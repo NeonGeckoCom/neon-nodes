@@ -1,4 +1,4 @@
-log_level: INFO
+log_level: DEBUG
 logs:
   level_overrides:
     error:
@@ -10,9 +10,9 @@ logs:
     debug: []
 neon_node:
   description: Neon Docker Node
-  hana_address: "https://hana.neonaiservices.com"
-  hana_username: guest
-  hana_password: password
+  hana_address: "https://hana.neonaialpha.com"
+  hana_username: neon_node_demo
+  hana_password: NeonDemo
 microphone:
   module: ovos-microphone-plugin-alsa
 listener:
