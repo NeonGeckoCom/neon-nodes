@@ -10,7 +10,7 @@ logs:
     debug: []
 neon_node:
   description: Neon Docker Node
-  hana_address: "https://hana.neonaialpha.com"
+  hana_address: "https://hana.neonaibeta.com"
   hana_username: neon_node_demo
   hana_password: NeonDemo
 microphone:
