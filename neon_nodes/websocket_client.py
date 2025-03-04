@@ -151,7 +151,7 @@ class NeonWebsocketClient:
                 self._listening_sound = AudioSegment.from_file(res_file,
                                                                format="wav")
             except Exception as e:
-                LOG.error(e)
+                LOG.error(f"Using default listening sound. e={e}")
                 self._listening_sound = AudioSegment.from_file(default_file,
                                                                format="wav")
         return self._listening_sound
@@ -169,7 +169,7 @@ class NeonWebsocketClient:
                 self._error_sound = AudioSegment.from_file(res_file,
                                                            format="wav")
             except Exception as e:
-                LOG.error(e)
+                LOG.error(f"Using default error sound. e={e}")
                 self._error_sound = AudioSegment.from_file(default_file,
                                                            format="wav")
         return self._error_sound
