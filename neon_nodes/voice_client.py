@@ -65,7 +65,11 @@ class NeonVoiceClient:
         init_log(self.config, "neon-node")
         self.bus = bus or FakeBus()
         self.lang = self.config.get('lang') or "en-us"
-        self._mic = OVOSMicrophoneFactory.create(self.config['microphone'])
+        mic_config = self.config.get('microphone')
+        if not mic_config:
+            raise RuntimeError(f"No microphone config in "
+                               f"{self.config.xdg_configs[0].path}")
+        self._mic = OVOSMicrophoneFactory.create(mic_config)
         self._mic.start()
         self._hotwords = HotwordContainer(self.bus)
         self._hotwords.load_hotword_engines()
