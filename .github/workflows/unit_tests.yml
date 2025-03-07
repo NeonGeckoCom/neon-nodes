@@ -5,11 +5,11 @@ on:
 
 jobs:
   docker_build_test_websocket:
-    uses: neongeckocom/.github/.github/workflows/docker_build_tests.yml@FEAT_ConfigurableDockerfile
+    uses: neongeckocom/.github/.github/workflows/docker_build_tests.yml@master
     with:
       dockerfile: dockerfiles/websocket.dockerfile
   docker_build_test_voice:
-    uses: neongeckocom/.github/.github/workflows/docker_build_tests.yml@FEAT_ConfigurableDockerfile
+    uses: neongeckocom/.github/.github/workflows/docker_build_tests.yml@master
     with:
       dockerfile: dockerfiles/voice.dockerfile
   py_build_tests:
