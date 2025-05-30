@@ -1,4 +1,5 @@
-neon-utils[network]~=1.9
+#neon-utils[network]~=1.9
+neon-utils[network]@git+https://github.com/neongeckocom/neon-utils@FEAT_HanaOptionalSsl
 ovos-dinkum-listener~=0.2
 ovos-plugin-manager~=0.3
 # TODO: webrtcvad fails to run in OS image
